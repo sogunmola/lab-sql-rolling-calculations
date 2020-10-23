@@ -22,4 +22,37 @@ GROUP BY activity_year, activity_month
 ORDER BY activity_year, activity_month;
 
 -- monthly_active_customer check
-SELECT * FROM monthly_active_customers;
+SELECT * FROM monthly_active_customers
+ORDER BY activity_month;
+
+/* 2) Active users in the previous month.
+*/
+WITH cte_activity as (
+  select active_customers, lag(active_customers,1) over (partition by activity_year) as last_month, activity_year, activity_month
+  from monthly_active_customers
+)
+select * from cte_activity
+where last_month is not null
+
+/* 3) Percentage change in the number of active customers
+*/
+with cte_activity as (
+  select active_customers, (active_customers-(lag(active_customers,1) over (partition by activity_year)))/(active_customers)*100 as percentage, 
+  lag(active_customers,1) over (partition by activity_year) as last_month, activity_year, activity_month
+  from monthly_customers
+)
+select * from cte_activity
+where last_month is not null;
+
+/* 4) Retained customers every month
+*/
+with distinct_users as (
+  select distinct customer_id , activity_month, activity_year
+  from customer_activity
+)
+select count(distinct d1.customer_id) as Retained_customers, d1.activity_month, d1.activity_year
+from distinct_users d1
+join distinct_users d2 on d1.customer_id = d2.customer_id
+and d1.activity_month = d2.activity_month + 1
+group by d1.activity_month, d1.activity_year
+order by d1.activity_year, d1.activity_month;
